@@ -1,0 +1,137 @@
+using DifferentialEquations, Plots, CSV, Tables
+function hoffmanprac(du,u,p,t)
+    #
+    #% Set Rate Parameters
+    a1  = 1.35;     #% Association
+    a2  = 0.36;
+    a3  = 0.54;
+    a4  = 30;
+    a5  = 30;
+    a6  = 30;
+    a7  = 11.1;
+    a8  = 2.88;
+    a9  = 4.2;
+
+    d1  = 0.075;    #% Dissociation
+    d2  = 0.105;
+    d3  = 0.105;
+    d4  = 0.03;
+    d5  = 0.03;
+    d6  = 0.03;
+
+    r1  = 0.2442;   #% IKK-mediated IkB deg
+    r2  = 0.09;
+    r3  = 0.132;
+    r4  = 1.221;
+    r5  = 0.45;
+    r6  = 0.66;
+
+    tr1 = 0.2448;  # % IkB translation
+    tr2 = 0.99;    # % Inducible IkBa txn
+    tr3 = 0.0168;  # % IkB mRNA deg
+
+    deg1 = 0.0067;  #% Constitutive free IkB deg
+    deg4 = 0.0014;  #% Constitutive bound IkB deg
+
+    k1  = 5.4;      #% NFkB Nuclear Import
+    k01 = 0.0048;   #% NFkB Nuclear Export
+    k2  = 0.8294;   #% IkBa:NFkB Nuclear Export
+    k2_2= 0.5 * k2; #% IkBe/b:NFkB Nuclear Export
+    tp1 = 0.018;    #% IkB Nuclear Import
+    tp2 = 0.012;    #% IkB Nuclear Export
+
+    tr2a= 9.2137e-5; #% Constitutive txn
+    tr2b= 1.0701e-5;
+    tr2e= 7.644e-6;
+
+    h   = 2; #% Hill Coefficient for Inducible IkBa txn
+
+    k02 = 0.0072; #%IKK Degradation Rate
+    fr_mod  = 0;
+        if PHASE == 2
+            if t < PULSE_LENGTH
+                fr_mod  = -0.5 / ((1+t)^2);
+            else
+                k02     = 0.18;
+            end
+        end
+    #
+    NFkB         = u[1];
+    NFkBn        = u[2];
+    IkBa         = u[3];
+    IkBb         = u[4];
+    IkBe         = u[5];
+    IkBat        = u[6];
+    IkBan        = u[7];
+    IkBaNFkBn    = u[8];
+    IkBbt        = u[9];
+    IkBbn        = u[10];
+    IkBbNFkBn    = u[11];
+    IkBet        = u[12];
+    IkBen        = u[13];
+    IkBeNFkBn    = u[14];
+    IKK          = u[15];
+    IKKIkBa      = u[16];
+    IKKIkBb      = u[17];
+    IKKIkBe      = u[18];
+    IkBaNFkB     = u[19];
+    IkBbNFkB     = u[20];
+    IkBeNFkB     = u[21];
+    IKKIkBaNFkB  = u[22];
+    IKKIkBbNFkB  = u[23];
+    IKKIkBeNFkB  = u[24];
+    FR           = u[25];
+    #
+    du[1] = -a4 * IkBa * NFkB + d4 * IkBaNFkB -a5 * IkBb * NFkB + d5 * IkBbNFkB -a6 * IkBe * NFkB + d6 * IkBeNFkB -a4 * IKKIkBa * NFkB + (r4 + d4) * IKKIkBaNFkB -a5 * IKKIkBb * NFkB + (r5 + d5) * IKKIkBbNFkB -a6 * IKKIkBe * NFkB + (r6 + d6) * IKKIkBeNFkB +deg4 * IkBaNFkB+ deg4 * IkBbNFkB+ deg4 * IkBeNFkB -k1 * NFkB+ k01 * NFkBn;
+    du[2] = k1 * NFkB - a4 * IkBan * NFkBn + d4 * IkBaNFkBn - a5 * IkBbn * NFkBn + d5 * IkBbNFkBn - a6 * IkBen * NFkBn + d6 * IkBeNFkBn - k01 * NFkBn;
+    du[3] = -a1 * IKK * IkBa + d1 * IKKIkBa - a4 * IkBa * NFkB + d4 * IkBaNFkB + tr1 * IkBat - deg1 * IkBa - tp1 * IkBa + tp2 * IkBan;
+    du[4] = -a2 * IKK * IkBb + d2 * IKKIkBb - a5 * IkBb * NFkB + d5 * IkBbNFkB + tr1 * IkBbt - deg1 * IkBb - tp1 * IkBb + tp2 * IkBbn;
+    du[5] = -a3 * IKK * IkBe + d3 * IKKIkBe - a6 * IkBe * NFkB + d6 * IkBeNFkB + tr1 * IkBet - deg1 * IkBe - tp1 * IkBe + tp2 * IkBen;
+    du[6] = tr2a + tr2 * (NFkBn^h) - tr3 * IkBat;
+    du[7] = tp1 * IkBa - tp2 * IkBan - a4 * IkBan * NFkBn + d4 * IkBaNFkBn;
+    du[8] = a4 * IkBan * NFkBn - d4 * IkBaNFkBn - k2 * IkBaNFkBn
+    du[9] = tr2b - tr3 * IkBbt;
+    du[10] = tp1 * IkBb - tp2 * IkBbn - a5 * IkBbn * NFkBn + d5 * IkBbNFkBn;
+    du[11] = a5 * IkBbn * NFkBn - d5 * IkBbNFkBn - k2_2 * FR * IkBbNFkBn;
+    du[12] = tr2e - tr3 * IkBet;
+    du[13] = tp1 * IkBe - tp2 * IkBen - a6 * IkBen * NFkBn + d6 * IkBeNFkBn;
+    du[14] = a6 * IkBen * NFkBn - d6 * IkBeNFkBn - k2_2 * IkBeNFkBn;
+    du[15] = -k02 * IKK - a1 * IKK * IkBa + (d1 + r1) * IKKIkBa - a2 * IKK * IkBb + (d2 + r2) * IKKIkBb - a3 * IKK * IkBe + (d3 + r3) * IKKIkBe - a7 * IKK * IkBaNFkB + (d1 + r4) * IKKIkBaNFkB - a8 * IKK * IkBbNFkB + (d2 + r5) * IKKIkBbNFkB - a9 * IKK * IkBeNFkB + (d3 + r6) * IKKIkBeNFkB;
+    du[16] = a1 * IKK * IkBa - (d1 + r1) * IKKIkBa - a4 * IKKIkBa * NFkB + d4 * IKKIkBaNFkB;
+    du[17] = a2 * IKK * IkBb - (d2 + r2) * IKKIkBb - a5 * IKKIkBb * NFkB + d5 * IKKIkBbNFkB;
+    du[18] = a3 * IKK * IkBe - (d3 + r3) * IKKIkBe - a6 * IKKIkBe * NFkB + d6 * IKKIkBeNFkB;
+    du[19] = a4 * IkBa * NFkB - d4 * IkBaNFkB - a7 * IKK * IkBaNFkB + d1 * IKKIkBaNFkB + k2 * IkBaNFkBn - deg4 * IkBaNFkB;
+    du[20] = a5 * IkBb * NFkB - d5 * IkBbNFkB - a8 * IKK * IkBbNFkB + d2 * IKKIkBbNFkB + k2_2 * FR * IkBbNFkBn - deg4 * IkBbNFkB;
+    du[21] = a6 * IkBe * NFkB - d6 * IkBeNFkB - a9 * IKK * IkBeNFkB + d3 * IKKIkBeNFkB + k2_2 * IkBeNFkBn - deg4 * IkBeNFkB;
+    du[22] = a7 * IKK * IkBaNFkB + a4 * IKKIkBa * NFkB - (d1 + d4 + r4) * IKKIkBaNFkB;
+    du[23] = a8 * IKK * IkBbNFkB + a5 * IKKIkBb * NFkB - (d2 + d5 + r5) * IKKIkBbNFkB;
+    du[24] = a9 * IKK * IkBeNFkB + a6 * IKKIkBe * NFkB - (d3 + d6 + r6) * IKKIkBeNFkB;
+    du[25] = fr_mod;
+    #
+end
+tspan = (0.0, 360.0)
+PHASE = 2
+PULSE_LENGTH = 360
+u0 = [0.1, 0.001, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]
+#u1 = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 1.0]
+uequilibrium = [0.000258127017718267, 0.000226467266688231, 0.183290800140255, 0.0212942661994315, 0.0152110429705970, 0.00548736753123294, 0.177790657130346, 0.00140553051458945, 0.000636964285714259, 0.0209044179333966, 0.000319372591123225, 0.000454999999999981, 0.0149325643101368, 0.000228136070137766, 0.1,0,0,0, 0.0823285431138940, 0.00946950853897954, 0.00676431392130725,0,0,0,0.5] #taken from end of a tspan=(0.0,10000.0), except 25 (fr_mod) which should be 0.5
+prob_hoffman = ODEProblem(hoffmanprac,uequilibrium,tspan)
+#sol=solve(prob_hoffman, progress = true, tstops=range(1,length=360))
+sol=solve(prob_hoffman)
+#
+
+#
+nuclear_NFkBn_IkBbNFkB=[]
+for i in range(1,length=Integer(tspan[2]))
+    local a=sol(i)
+    local NFkBn=a[2]
+    local IkBbNFkBn=a[11]
+    push!(nuclear_NFkBn_IkBbNFkB,1000*(NFkBn+IkBbNFkBn))
+end
+plot(nuclear_NFkBn_IkBbNFkB, ylabel="nuclear NFkBn and IkBbNFkBn",xlabel="t")
+
+#
+# plot any variable using plot(sol.t,sol[variable,:])
+#to ensure x is time, not solver step
+#mytable =
+#Dates.now()
