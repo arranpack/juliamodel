@@ -1,11 +1,12 @@
-using DifferentialEquations, Plots, CSV, Tables
+using DifferentialEquations, Plots, CSV, Tables, Dates, DataFrames, DiffEqSensitivity
+cd("C:/Users/bsms9jt3/OneDrive - University of Brighton/Documents/Julia/Results") #or change to your own results folder
 function hoffmanprac(du,u,p,t)
     #
     #% Set Rate Parameters
     a1  = 1.35;     #% Association
     a2  = 0.36;
     a3  = 0.54;
-    a4  = 30;
+    a4  = 30; #NFkB to IkBa
     a5  = 30;
     a6  = 30;
     a7  = 11.1;
@@ -55,6 +56,8 @@ function hoffmanprac(du,u,p,t)
                 k02     = 0.18;
             end
         end
+    #
+
     #
     NFkB         = u[1];
     NFkBn        = u[2];
@@ -109,29 +112,34 @@ function hoffmanprac(du,u,p,t)
     du[25] = fr_mod;
     #
 end
+#Define parameters for problem
 tspan = (0.0, 360.0)
 PHASE = 2
 PULSE_LENGTH = 360
 u0 = [0.1, 0.001, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]
 #u1 = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 1.0]
-uequilibrium = [0.000258127017718267, 0.000226467266688231, 0.183290800140255, 0.0212942661994315, 0.0152110429705970, 0.00548736753123294, 0.177790657130346, 0.00140553051458945, 0.000636964285714259, 0.0209044179333966, 0.000319372591123225, 0.000454999999999981, 0.0149325643101368, 0.000228136070137766, 0.1,0,0,0, 0.0823285431138940, 0.00946950853897954, 0.00676431392130725,0,0,0,0.5] #taken from end of a tspan=(0.0,10000.0), except 25 (fr_mod) which should be 0.5
+uequilibrium = [0.000258127017718267, 0.000226467266688231, 0.183290800140255, 0.0212942661994315, 0.0152110429705970, 0.00548736753123294, 0.177790657130346, 0.00140553051458945, 0.000636964285714259, 0.0209044179333966, 0.000319372591123225, 0.000454999999999981, 0.0149325643101368, 0.000228136070137766, 0.1,0,0,0, 0.0823285431138940, 0.00946950853897954, 0.00676431392130725,0,0,0,0.5] #taken from end of a tspan=(0.0,10000.0), and changed 25 (fr_mod) to 0.5
+#Defining and solving problem
 prob_hoffman = ODEProblem(hoffmanprac,uequilibrium,tspan)
 #sol=solve(prob_hoffman, progress = true, tstops=range(1,length=360))
 sol=solve(prob_hoffman)
-#
-
-#
-nuclear_NFkBn_IkBbNFkB=[]
-for i in range(1,length=Integer(tspan[2]))
-    local a=sol(i)
-    local NFkBn=a[2]
-    local IkBbNFkBn=a[11]
-    push!(nuclear_NFkBn_IkBbNFkB,1000*(NFkBn+IkBbNFkBn))
+#Solution naming and batch
+outputname=string(Dates.now())[1:19]
+outputname=replace(outputname,":" => "_")
+CSV.write(outputname*".csv",DataFrame(sol))
+JLD2.@save outputname*".jld2" sol               #to load, use julia> JLD2.@load <.jld2 file> sol 
+#Plotting
+function plotNFkBn_IkBbNFkB(sol) #can accept any sol, interpolates for approximate values at t [0:end] defined by tspan above
+    nuclear_NFkBn_IkBbNFkB=[]
+    for i in range(1,length=Integer(tspan[2]))
+        local a=sol(i)
+        local NFkBn=a[2]
+        local IkBbNFkBn=a[11]
+        push!(nuclear_NFkBn_IkBbNFkB,1000*(NFkBn+IkBbNFkBn))
+    end
+    plot(nuclear_NFkBn_IkBbNFkB, ylabel="nuclear NFkBn and IkBbNFkBn",xlabel="t")
 end
-plot(nuclear_NFkBn_IkBbNFkB, ylabel="nuclear NFkBn and IkBbNFkBn",xlabel="t")
-
+plotNFkBn_IkBbNFkB(sol)
 #
 # plot any variable using plot(sol.t,sol[variable,:])
-#to ensure x is time, not solver step
-#mytable =
-#Dates.now()
+# this ensures x is time, not solver step
