@@ -1,0 +1,66 @@
+#Run me in the same folder as "nearlycomplete_hoffman2002" to get the 37parameter sensitivity analysis. Graph saving options below line 54.
+#To alter individual parameters; change the range on line 37 and #comment# line 52, and #uncomment# line 49 to see the graph.
+include("nearlycomplete_hoffman2002")
+#Define parameters for problem
+tspan = (0.0, 360.0)
+PHASE = 2
+PULSE_LENGTH = 360
+paramnames=["a1","a2","a3","a4","a5","a6","a7","a8","a9","d1","d2","d3","d4","d5","d6","r1","r2","r3","r4","r5","r6","tr1","tr2","tr3","deg1","deg4","k1","k01","k2","k2_2","tp1","tp2","tr2a","tr2b","tr2e","h","k02"]
+u0 = [0.1, 0.001, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]
+#u1 = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 1.0]
+uequilibrium = [0.000258127017718267, 0.000226467266688231, 0.183290800140255, 0.0212942661994315, 0.0152110429705970, 0.00548736753123294, 0.177790657130346, 0.00140553051458945, 0.000636964285714259, 0.0209044179333966, 0.000319372591123225, 0.000454999999999981, 0.0149325643101368, 0.000228136070137766, 0.1,0,0,0, 0.0823285431138940, 0.00946950853897954, 0.00676431392130725,0,0,0,0.5] #taken from end of a tspan=(0.0,10000.0), and changed 25 (fr_mod) to 0.5
+#
+function plotNFkBn_IkBbNFkBmulti(sollist, param, modlist) #can accept any sol, interpolates for approximate values at t [0:end] defined by tspan above
+    local paramnames=["a1","a2","a3","a4","a5","a6","a7","a8","a9","d1","d2","d3","d4","d5","d6","r1","r2","r3","r4","r5","r6","tr1","tr2","tr3","deg1","deg4","k1","k01","k2","k2_2","tp1","tp2","tr2a","tr2b","tr2e","h","k02"]
+    z = string(paramnames[Int(param)])#*" * "*string(modlist))
+    yvalues=[]
+    for itsol in sollist
+        nuclear_NFkBn_IkBbNFkB=[]
+        for i in range(1,length=Integer(tspan[2]))
+            local a=itsol(i)
+            local NFkBn=a[2]
+            local IkBbNFkBn=a[11]
+            push!(nuclear_NFkBn_IkBbNFkB,1000*(NFkBn+IkBbNFkBn))
+        end
+        push!(yvalues,nuclear_NFkBn_IkBbNFkB)
+    end
+    return plot(yvalues, ylabel="NFkBn + IkBbNFkBn",xlabel="t",title=z,show=true,label=adjoint(modlist),legend=:bottomleft)
+end
+#
+#
+modlist = [0.1,0.5,1,2,10] #multipliers for the parameters
+# modlist = [1,1.5,2,2.5,3,3.5,4,6] #alternate modlists for your leisure
+# modlist = [1,2,3,4,5,6,7,8,9,10]
+# modlist = [0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0]
+#
+subplotlist=[]
+for i = 1:37 #range of i corresponds to range of parameters to test, 37 total
+    sollist=[]
+    for j in modlist #will cycle through modifiers
+        #Defining and solving problem
+        println(i,"mod",j) #for debugging
+        prob_hoffman = ODEProblem(hoffmanprac,uequilibrium,tspan,[i,j]) #define problem for altered parameter
+        sol=solve(prob_hoffman) #make sol solution object for the modifier*parameter combo
+        push!(sollist,sol) #gather solution objects for that parameter (all modifiers)
+    end
+    #println(sollist)
+    plotNFkBn_IkBbNFkBmulti(sollist, param, modlist) #make a plot for that parameter and all its modifiers
+    push!(subplotlist,current()) #gather those plots, subplotlist contains all parameters' plots
+    #return current()
+end
+
+plot(subplotlist[1],subplotlist[2],subplotlist[3],subplotlist[4],subplotlist[5],subplotlist[6],subplotlist[7],subplotlist[8],subplotlist[9],subplotlist[10],subplotlist[11],subplotlist[12],subplotlist[13],subplotlist[14],subplotlist[15],subplotlist[16],subplotlist[17],subplotlist[18],subplotlist[19],subplotlist[20],subplotlist[21],subplotlist[22],subplotlist[23],subplotlist[24],subplotlist[25],subplotlist[26],subplotlist[27],subplotlist[28],subplotlist[29],subplotlist[30],subplotlist[31],subplotlist[32],subplotlist[33],subplotlist[34],subplotlist[35],subplotlist[36],subplotlist[37],size=[2000,2000],legend=:outerbottomright)
+
+###Figure saving for png graphs:
+###Recommend making a directory and running inside there.
+
+# savefig("37sensitivityanalysis")
+
+# for i in 1:37
+#       plot(subplotlist[i])
+#       name="sensitivityanalysis_1_"*paramnames[i]
+#       savefig(name)
+# end
+
+# plot any variable using plot(sol.t,sol[variable,:])
+# this ensures x is time, not solver step
