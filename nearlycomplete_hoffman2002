@@ -1,12 +1,13 @@
-using DifferentialEquations, Plots, CSV, Tables, Dates, DataFrames, DiffEqSensitivity
+using DifferentialEquations, Plots, CSV, Tables, Dates, DataFrames, DiffEqSensitivity, JLD2
 cd("C:/Users/bsms9jt3/OneDrive - University of Brighton/Documents/Julia/Results") #or change to your own results folder
 function hoffmanprac(du,u,p,t)
     #
     #% Set Rate Parameters
+    #NB Parameters are defined here, but made redundant by the parameter altering section below.
     a1  = 1.35;     #% Association
     a2  = 0.36;
     a3  = 0.54;
-    a4  = 30; #NFkB to IkBa
+    a4  = 30;       # NFkB to IkBa
     a5  = 30;
     a6  = 30;
     a7  = 11.1;
@@ -27,9 +28,9 @@ function hoffmanprac(du,u,p,t)
     r5  = 0.45;
     r6  = 0.66;
 
-    tr1 = 0.2448;  # % IkB translation
-    tr2 = 0.99;    # % Inducible IkBa txn
-    tr3 = 0.0168;  # % IkB mRNA deg
+    tr1 = 0.2448;   # % IkB translation
+    tr2 = 0.99;     # % Inducible IkBa txn
+    tr3 = 0.0168;   # % IkB mRNA deg
 
     deg1 = 0.0067;  #% Constitutive free IkB deg
     deg4 = 0.0014;  #% Constitutive bound IkB deg
@@ -56,9 +57,14 @@ function hoffmanprac(du,u,p,t)
                 k02     = 0.18;
             end
         end
-    #
+    #Altering parameters:
+    global param, modifier = p
+    inputparams = [1.35, 0.36, 0.54, 30.0, 30.0, 30.0, 11.1, 2.88, 4.2, 0.075, 0.105, 0.105, 0.03, 0.03, 0.03, 0.2442, 0.09, 0.132, 1.221, 0.45, 0.66, 0.2448, 0.99, 0.0168, 0.0067, 0.0014, 5.4, 0.0048, 0.8294, 0.4147, 0.018, 0.012, 9.2137e-5, 1.0701e-5, 7.644e-6, 2.0, 0.0072]
+    inputparams[Int(param)] =  inputparams[Int(param)]*modifier
+    a1,a2,a3,a4,a5,a6,a7,a8,a9,d1,d2,d3,d4,d5,d6,r1,r2,r3,r4,r5,r6,tr1,tr2,tr3,deg1,deg4,k1,k01,k2,k2_2,tp1,tp2,tr2a,tr2b,tr2e,h,k02= inputparams
+    #[1.35, 0.36, 0.54, 30.0, 30.0, 30.0, 11.1, 2.88, 4.2, 0.075, 0.105, 0.105, 0.03, 0.03, 0.03, 0.2442, 0.09, 0.132, 1.221, 0.45, 0.66, 0.2448, 0.99, 0.0168, 0.0067, 0.0014, 5.4, 0.0048, 0.8294, 0.4147, 0.018, 0.012, 9.2137e-5, 1.0701e-5, 7.644e-6, 2.0, 0.0072]
 
-    #
+    #defining molecules
     NFkB         = u[1];
     NFkBn        = u[2];
     IkBa         = u[3];
@@ -120,16 +126,22 @@ u0 = [0.1, 0.001, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.
 #u1 = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 1.0]
 uequilibrium = [0.000258127017718267, 0.000226467266688231, 0.183290800140255, 0.0212942661994315, 0.0152110429705970, 0.00548736753123294, 0.177790657130346, 0.00140553051458945, 0.000636964285714259, 0.0209044179333966, 0.000319372591123225, 0.000454999999999981, 0.0149325643101368, 0.000228136070137766, 0.1,0,0,0, 0.0823285431138940, 0.00946950853897954, 0.00676431392130725,0,0,0,0.5] #taken from end of a tspan=(0.0,10000.0), and changed 25 (fr_mod) to 0.5
 #Defining and solving problem
-prob_hoffman = ODEProblem(hoffmanprac,uequilibrium,tspan)
+prob_hoffman = ODEProblem(hoffmanprac,uequilibrium,tspan,[1,1])
 #sol=solve(prob_hoffman, progress = true, tstops=range(1,length=360))
 sol=solve(prob_hoffman)
-#Solution naming and batch
+#Solution naming and saving
 outputname=string(Dates.now())[1:19]
 outputname=replace(outputname,":" => "_")
-CSV.write(outputname*".csv",DataFrame(sol))
-JLD2.@save outputname*".jld2" sol               #to load, use julia> JLD2.@load <.jld2 file> sol 
+CSV.write(outputname*".csv",DataFrame(sol))     #slightly tricky to use, would recommend JLD2 sol object.
+JLD2.@save outputname*".jld2" sol               #to load, use julia> JLD2.@load <.jld2 file> sol
 #Plotting
 function plotNFkBn_IkBbNFkB(sol) #can accept any sol, interpolates for approximate values at t [0:end] defined by tspan above
+    if modifier == 1
+        z= string("wt")
+    else
+        paramnames=["a1","a2","a3","a4","a5","a6","a7","a8","a9","d1","d2","d3","d4","d5","d6","r1","r2","r3","r4","r5","r6","tr1","tr2","tr3","deg1","deg4","k1","k01","k2","k2_2","tp1","tp2","tr2a","tr2b","tr2e","h","k02"]
+        z = string(paramnames[Int(param)]*" * "*string(modifier))
+    end
     nuclear_NFkBn_IkBbNFkB=[]
     for i in range(1,length=Integer(tspan[2]))
         local a=sol(i)
@@ -137,7 +149,7 @@ function plotNFkBn_IkBbNFkB(sol) #can accept any sol, interpolates for approxima
         local IkBbNFkBn=a[11]
         push!(nuclear_NFkBn_IkBbNFkB,1000*(NFkBn+IkBbNFkBn))
     end
-    plot(nuclear_NFkBn_IkBbNFkB, ylabel="nuclear NFkBn and IkBbNFkBn",xlabel="t")
+    plot(nuclear_NFkBn_IkBbNFkB, ylabel="nuclear NFkBn and IkBbNFkBn",xlabel="t",title=z)
 end
 plotNFkBn_IkBbNFkB(sol)
 #
